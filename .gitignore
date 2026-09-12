@@ -1,0 +1,6 @@
+venv/
+__pycache__/
+*.pyc
+.env
+course_reminder.db
+.pytest_cache/

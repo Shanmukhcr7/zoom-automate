@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Course Reminder Automation</title>
+    <style>
+        body { font-family: Arial, sans-serif; max-width: 800px; margin: 0 auto; padding: 20px; background-color: #f5f5f5; }
+        h1 { color: #333; text-align: center; }
+        .card { background: white; padding: 20px; margin-bottom: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+        .batch-title { margin-top: 0; color: #2c3e50; border-bottom: 2px solid #eee; padding-bottom: 10px; }
+        .status-yes { color: #27ae60; font-weight: bold; }
+        .status-no { color: #e74c3c; font-weight: bold; }
+        .info-grid { display: grid; grid-template-columns: 150px 1fr; gap: 10px; margin-top: 10px; }
+        .info-label { font-weight: bold; color: #555; }
+        button { background: #3498db; color: white; border: none; padding: 8px 16px; border-radius: 4px; cursor: pointer; }
+        button:hover { background: #2980b9; }
+        hr { border: 1px solid #eee; margin: 20px 0; }
+    </style>
+</head>
+<body>
+
+    <h1>COURSE REMINDER AUTOMATION</h1>
+    
+    <div class="card" style="text-align: center; background-color: #e8f4f8;">
+        <h2>TODAY</h2>
+        <p><strong>Date:</strong> {{ today_str }}</p>
+        <button onclick="triggerReminders()">Trigger 11 AM Reminders Now</button>
+    </div>
+
+    {% for item in dashboard_data %}
+    <div class="card">
+        <h2 class="batch-title">{{ item.batch.name }}</h2>
+        
+        <div class="info-grid">
+            <div class="info-label">Class Days:</div>
+            <div>{{ item.days }}</div>
+            
+            <div class="info-label">Current Week:</div>
+            <div>
+                #{{ item.batch.current_week }} 
+                <button onclick="changeWeek({{ item.batch.id }})" style="margin-left: 10px; font-size: 0.8em;">Change Week</button>
+            </div>
+
+            <div class="info-label">Class Today:</div>
+            <div>
+                {% if item.has_class_today %}
+                    <span class="status-yes">YES</span>
+                {% else %}
+                    <span class="status-no">NO</span>
+                {% endif %}
+            </div>
+            
+            <div class="info-label">Telegram:</div>
+            <div>{% if item.batch.telegram_group_chat_id %}Connected{% else %}Not Connected{% endif %}</div>
+        </div>
+
+        {% if item.has_class_today %}
+            <hr>
+            <h3>Today's Curriculum</h3>
+            {% if item.curriculum %}
+                <div class="info-grid">
+                    <div class="info-label">Category:</div>
+                    <div>{{ item.curriculum.category }}</div>
+                    
+                    <div class="info-label">Topic:</div>
+                    <div>{{ item.curriculum.topic }}</div>
+                    
+                    <div class="info-label">Zoom:</div>
+                    <div>
+                        {% if item.scheduled and item.scheduled.zoom_meeting_id %}
+                            Created (<a href="{{ item.scheduled.zoom_join_url }}" target="_blank">Join Link</a>)
+                        {% else %}
+                            <span class="status-no">Not Created Yet</span>
+                        {% endif %}
+                    </div>
+                    
+                    <div class="info-label">Reminder:</div>
+                    <div>
+                        {% if item.scheduled %}
+                            {{ item.scheduled.reminder_status }}
+                        {% else %}
+                            Pending
+                        {% endif %}
+                    </div>
+                </div>
+            {% else %}
+                <p class="status-no">⚠️ CURRICULUM NOT FOUND for Week #{{ item.batch.current_week }} on {{ today_str }}</p>
+                <p>Please configure the curriculum for this day.</p>
+            {% endif %}
+        {% endif %}
+    </div>
+    {% endfor %}
+
+    <script>
+        async function triggerReminders() {
+            if (confirm("Are you sure you want to trigger today's reminders manually? This will create Zoom meetings and send Telegram messages for all batches that have class today.")) {
+                try {
+                    const response = await fetch('/api/reminders/today', { method: 'POST' });
+                    const result = await response.json();
+                    alert(result.message);
+                    setTimeout(() => window.location.reload(), 2000); // Reload to see updates
+                } catch (e) {
+                    alert('Failed to trigger reminders.');
+                }
+            }
+        }
+        
+        async function changeWeek(batchId) {
+            const newWeek = prompt("Enter the new week number:");
+            if (newWeek && !isNaN(newWeek)) {
+                try {
+                    const response = await fetch(`/api/batches/${batchId}/week`, {
+                        method: 'PUT',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ current_week: parseInt(newWeek) })
+                    });
+                    if(response.ok) {
+                        window.location.reload();
+                    } else {
+                        alert("Failed to update week.");
+                    }
+                } catch(e) {
+                    alert("Error updating week.");
+                }
+            }
+        }
+    </script>
+</body>
+</html>
